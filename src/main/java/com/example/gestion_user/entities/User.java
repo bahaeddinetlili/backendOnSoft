@@ -1,10 +1,10 @@
 package com.example.gestion_user.entities;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 
 import javax.persistence.*;
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 
@@ -34,10 +34,29 @@ public class User implements Serializable {
     private String[] authorities;
     private boolean isActive;
     private boolean isNotLocked;
+    private Instant tokenExpirationTime;
+    private String resetToken;
 
-    /*@JsonIgnore
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<Courrier> courriers;*/
+    // Getter and Setter for resetToken
+    public String getResetToken() {
+        return resetToken;
+    }
+
+    public void setResetToken(String resetToken) {
+        this.resetToken = resetToken;
+    }
+
+    // Getter and Setter for tokenExpirationTime
+    public Instant getTokenExpirationTime() {
+        return tokenExpirationTime;
+    }
+
+    public void setTokenExpirationTime(Instant tokenExpirationTime) {
+        this.tokenExpirationTime = tokenExpirationTime;
+    }
+
+
+
 
 
 }

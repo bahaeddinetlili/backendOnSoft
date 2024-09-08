@@ -50,6 +50,10 @@ public class UserController extends ExceptionHandling {
     @Autowired
     private UserRepository userRepository;
 
+
+
+
+
     @PostMapping("/register")
     public ResponseEntity<User> register(@RequestBody User user) throws UserNotFoundException, UsernameExistException, EmailExistException, MessagingException {
         User newUser = userService.register(user.getFirstName(), user.getLastName(), user.getUsername(), user.getEmail(), user.getPassword());
@@ -168,5 +172,21 @@ public class UserController extends ExceptionHandling {
             return ResponseEntity.notFound().build();
         }
     }*/
+
+
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@RequestParam("email") String email) throws UserNotFoundException, MessagingException {
+        userService.generatePasswordResetToken(email);
+        return ResponseEntity.ok("Password reset email sent.");
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@RequestParam("token") String token, @RequestParam("password") String newPassword) {
+        userService.resetPassword(token, newPassword);
+        return ResponseEntity.ok("Password reset successfully.");
+    }
+
+
 
 }

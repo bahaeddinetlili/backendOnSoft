@@ -4,6 +4,7 @@ import com.example.gestion_user.entities.User;
 import com.example.gestion_user.exceptions.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.mail.MessagingException;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +38,16 @@ public interface UserService {
 
     //void resetPassword(String email) throws MessagingException, EmailNotFoundException;
 
+    // Methods related to password reset functionality
+
+    void createPasswordResetTokenForUser(User user, String token);
+
+    public Optional<User> findUserByPasswordResetToken(String token);
+    void changeUserPassword(User user, String newPassword);
+
+    void generatePasswordResetToken(String email) throws UserNotFoundException, MessagingException;
+
+    void resetPassword(String token, String newPassword);
 
 
 }

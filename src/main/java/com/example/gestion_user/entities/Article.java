@@ -9,6 +9,7 @@ import lombok.Setter;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.util.List;
 
 @Entity
 @NoArgsConstructor
@@ -41,4 +42,8 @@ public class Article implements Serializable {
     @Lob // Use this annotation for large objects
     @Column(name = "imagedata")
     private byte[] imageData;
+
+
+
+
 }

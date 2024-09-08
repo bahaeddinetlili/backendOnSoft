@@ -38,10 +38,11 @@ public class GestionUserApplication {
         return new CorsFilter(urlBasedCorsConfigurationSource);
     }
 
+
     @Bean
     public BCryptPasswordEncoder bCryptPasswordEncoder() {
         return new BCryptPasswordEncoder();
+
     }
-
-
 }
+

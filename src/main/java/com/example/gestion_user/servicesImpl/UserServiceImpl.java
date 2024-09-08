@@ -1,9 +1,12 @@
 package com.example.gestion_user.servicesImpl;
 
+import com.example.gestion_user.Util.EmailUtil;
+import com.example.gestion_user.entities.PasswordResetToken;
 import com.example.gestion_user.entities.Role;
 import com.example.gestion_user.entities.User;
 import com.example.gestion_user.entities.UserPrincipal;
 import com.example.gestion_user.exceptions.*;
+import com.example.gestion_user.repositories.PasswordResetTokenRepository;
 import com.example.gestion_user.repositories.UserRepository;
 import com.example.gestion_user.security.LoginAttemptService;
 import com.example.gestion_user.services.UserService;
@@ -21,16 +24,16 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import javax.mail.MessagingException;
 import javax.transaction.Transactional;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.time.Instant;
+import java.util.*;
 
 import static com.example.gestion_user.constants.FileConstant.*;
 import static com.example.gestion_user.constants.UserImplConstant.*;
@@ -38,26 +41,32 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.springframework.http.MediaType.*;
 
-
 @Service
 @Transactional
 @Qualifier("userDetailsService")
 public class UserServiceImpl implements UserService, UserDetailsService {
 
-
     private Logger LOGGER = LoggerFactory.getLogger(getClass());
+
     @Autowired
     private UserRepository userRepository;
+
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
 
     @Autowired
     private LoginAttemptService loginAttemptService;
 
+    @Autowired
+    private PasswordResetTokenRepository passwordResetTokenRepository;
+
+    @Autowired
+    private EmailUtil emailUtil;
+
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findUserByUsername(username);
-        if(user == null) {
+        if (user == null) {
             LOGGER.error(NO_USER_FOUND_BY_USERNAME + username);
             throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + username);
         } else {
@@ -108,10 +117,10 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         user.setActive(isActive);
         user.setNotLocked(isNonLocked);
         user.setRole(getRoleEnumName(role).name());
-        user.setAuthorities((getRoleEnumName(role).getAuthorities()));
+        user.setAuthorities(getRoleEnumName(role).getAuthorities());
         user.setProfileImage(getTemporaryProfileImage(username));
         userRepository.save(user);
-        saveProfileImage(user,profileImage);
+        saveProfileImage(user, profileImage);
         LOGGER.info("New user added: " + username);
         return user;
     }
@@ -168,11 +177,11 @@ public class UserServiceImpl implements UserService, UserDetailsService {
 
     private void saveProfileImage(User user, MultipartFile profileImage) throws IOException, NotAnImageFileException {
         if (profileImage != null) {
-            if(!Arrays.asList(IMAGE_JPEG_VALUE, IMAGE_PNG_VALUE, IMAGE_GIF_VALUE).contains(profileImage.getContentType())) {
+            if (!Arrays.asList(IMAGE_JPEG_VALUE, IMAGE_PNG_VALUE, IMAGE_GIF_VALUE).contains(profileImage.getContentType())) {
                 throw new NotAnImageFileException(profileImage.getOriginalFilename() + NOT_AN_IMAGE_FILE);
             }
             Path userFolder = Paths.get(USER_FOLDER + user.getUsername()).toAbsolutePath().normalize();
-            if(!Files.exists(userFolder)) {
+            if (!Files.exists(userFolder)) {
                 Files.createDirectories(userFolder);
                 LOGGER.info(DIRECTORY_CREATED + userFolder);
             }
@@ -206,8 +215,8 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     }
 
     private void validateLoginAttempt(User user) {
-        if(user.isNotLocked()) {
-            if(loginAttemptService.hasExceededMaxAttempts(user.getUsername())) {
+        if (user.isNotLocked()) {
+            if (loginAttemptService.hasExceededMaxAttempts(user.getUsername())) {
                 user.setNotLocked(false);
             } else {
                 user.setNotLocked(true);
@@ -220,27 +229,76 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     private User validateNewUsernameAndEmail(String currentUsername, String newUsername, String newEmail) throws UserNotFoundException, UsernameExistException, EmailExistException {
         User userByNewUsername = findUserByUsername(newUsername);
         User userByNewEmail = findUserByEmail(newEmail);
-        if(StringUtils.isNotBlank(currentUsername)) {
+        if (StringUtils.isNotBlank(currentUsername)) {
             User currentUser = findUserByUsername(currentUsername);
-            if(currentUser == null) {
+            if (currentUser == null) {
                 throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME + currentUsername);
             }
-            if(userByNewUsername != null && !currentUser.getId().equals(userByNewUsername.getId())) {
+            if (userByNewUsername != null && !currentUser.getId().equals(userByNewUsername.getId())) {
                 throw new UsernameExistException(USERNAME_ALREADY_EXISTS);
             }
-            if(userByNewEmail != null && !currentUser.getId().equals(userByNewEmail.getId())) {
+            if (userByNewEmail != null && !currentUser.getId().equals(userByNewEmail.getId())) {
                 throw new EmailExistException(EMAIL_ALREADY_EXISTS);
             }
             return currentUser;
         } else {
-            if(userByNewUsername != null) {
+            if (userByNewUsername != null) {
                 throw new UsernameExistException(USERNAME_ALREADY_EXISTS);
             }
-            if(userByNewEmail != null) {
+            if (userByNewEmail != null) {
                 throw new EmailExistException(EMAIL_ALREADY_EXISTS);
             }
             return null;
         }
     }
 
+    @Override
+    public void generatePasswordResetToken(String email) throws UserNotFoundException, MessagingException {
+        User user = findUserByEmail(email);
+        if (user == null) {
+            throw new UserNotFoundException("User with email " + email + " not found.");
+        }
+
+        String token = UUID.randomUUID().toString();
+        createPasswordResetTokenForUser(user, token);
+
+        // Ensure EmailUtil is correctly injected
+        emailUtil.sendPasswordResetEmail(email, token);
+    }
+
+    @Override
+    public void resetPassword(String token, String newPassword) {
+        Optional<PasswordResetToken> resetTokenOpt = Optional.ofNullable(passwordResetTokenRepository.findByToken(token));
+        if (!resetTokenOpt.isPresent()) {
+            throw new RuntimeException("Invalid token");
+        }
+
+        PasswordResetToken resetToken = resetTokenOpt.get();
+        User user = resetToken.getUser();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        passwordResetTokenRepository.deleteByToken(token);
+    }
+
+    @Override
+    public void createPasswordResetTokenForUser(User user, String token) {
+        PasswordResetToken resetToken = new PasswordResetToken();
+        resetToken.setUser(user);
+        resetToken.setToken(token);
+        resetToken.setExpiryDate(Instant.now().plusSeconds(3600)); // Token expires in 1 hour
+        passwordResetTokenRepository.save(resetToken);
+    }
+
+    @Override
+    public Optional<User> findUserByPasswordResetToken(String token) {
+        Optional<PasswordResetToken> resetTokenOpt = Optional.ofNullable(passwordResetTokenRepository.findByToken(token));
+        return resetTokenOpt.map(PasswordResetToken::getUser);
+    }
+
+
+    @Override
+    public void changeUserPassword(User user, String newPassword) {
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
 }
