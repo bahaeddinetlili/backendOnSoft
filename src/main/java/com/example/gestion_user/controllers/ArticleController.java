@@ -14,51 +14,32 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
 
-@AllArgsConstructor
+
 @RestController
 @RequestMapping("/articles")
 public class ArticleController {
 
     private final ArticleService articleService;
 
-    // Save an article
+    public ArticleController(ArticleService articleService) {
+        this.articleService = articleService;
+    }
+
     @PostMapping("/add-article")
     public ResponseEntity<Article> saveArticle(@RequestBody Article article) {
         Article savedArticle = articleService.save(article);
         return new ResponseEntity<>(savedArticle, HttpStatus.CREATED);
     }
-/*
-    // Find an article by ID
-    @GetMapping("/retrieve-article/{idArticle}")
-    public ResponseEntity<Article> getArticleById(@PathVariable Integer id) {
-        Article article = articleService.findById(id);
-        return article != null ? new ResponseEntity<>(article, HttpStatus.OK) : new ResponseEntity<>(HttpStatus.NOT_FOUND);
-    }
 
-*/
-
-
-    @GetMapping("/retrieve-all-articles")
-    public ResponseEntity<List<Article>> getAllArticles() {
-        List<Article> articles = articleService.findAll();
-        return new ResponseEntity<>(articles, HttpStatus.OK);
-    }
-
-
-    // Delete an article by ID
-    @DeleteMapping("/remove-article/{id}")
-    public ResponseEntity<Void> deleteArticle(@PathVariable Integer id) {
-        articleService.delete(id);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-    }
-
-    // Save image for an article
-    @PostMapping("/{id}/image")
-    public ResponseEntity<Void> uploadArticleImage(@PathVariable Integer id, @RequestParam("file") MultipartFile file) {
+    @PutMapping("/update-article/{id}")
+    public ResponseEntity<Article> updateArticle(@PathVariable Integer id, @RequestBody Article article) {
         try {
-            articleService.saveImage(Long.valueOf(id), file);
-            return new ResponseEntity<>(HttpStatus.OK);
-        } catch (IOException e) {
+            Article updatedArticle = articleService.updateArticle(id, article);
+            return new ResponseEntity<>(updatedArticle, HttpStatus.OK);
+        } catch (RuntimeException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            e.printStackTrace();
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -74,22 +55,28 @@ public class ArticleController {
         }
     }
 
+    @GetMapping("/retrieve-all-articles")
+    public ResponseEntity<List<Article>> getAllArticles() {
+        List<Article> articles = articleService.findAll();
+        return new ResponseEntity<>(articles, HttpStatus.OK);
+    }
 
-    @PutMapping("/update-article/{id}")
-    public ResponseEntity<Article> updateArticle(@PathVariable Integer id, @RequestBody Article article) {
+    @DeleteMapping("/remove-article/{id}")
+    public ResponseEntity<Void> deleteArticle(@PathVariable Integer id) {
+        articleService.delete(id);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
+    @PostMapping("/{id}/image")
+    public ResponseEntity<Void> uploadArticleImage(@PathVariable Integer id, @RequestParam("file") MultipartFile file) {
         try {
-            Article updatedArticle = articleService.updateArticle(id, article);
-            return new ResponseEntity<>(updatedArticle, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        } catch (Exception e) {
-            e.printStackTrace();
+            articleService.saveImage(Long.valueOf(id), file);
+            return new ResponseEntity<>(HttpStatus.OK);
+        } catch (IOException e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-
-    // Generate QR code for an article
     @GetMapping("/generateQRCodeForArticle/{id}")
     public ResponseEntity<byte[]> generateQRCodeForArticle(@PathVariable Integer id) {
         try {
@@ -101,4 +88,7 @@ public class ArticleController {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+
+
 }

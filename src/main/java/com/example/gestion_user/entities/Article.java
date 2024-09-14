@@ -39,11 +39,24 @@ public class Article implements Serializable {
     @Column(name = "prixunitairettc")
     private BigDecimal prixUnitaireTtc;
 
+    @Lob
+    @Column(name = "description")
+    private String description;
+
+
+
     @Lob // Use this annotation for large objects
     @Column(name = "imagedata")
     private byte[] imageData;
 
-
+/*
+    @ManyToOne
+    @JoinColumn(name = "famille_id")
+    private Famille famille;
+*/
+    @ManyToOne
+    @JoinColumn(name = "category_id")
+    private Category category;
 
 
 }

@@ -40,14 +40,14 @@ public interface UserService {
 
     // Methods related to password reset functionality
 
-    void createPasswordResetTokenForUser(User user, String token);
+   // void createPasswordResetTokenForUser(User user, String token);
 
-    public Optional<User> findUserByPasswordResetToken(String token);
-    void changeUserPassword(User user, String newPassword);
+    //public Optional<User> findUserByPasswordResetToken(String token);
+    //void changeUserPassword(User user, String newPassword);
 
-    void generatePasswordResetToken(String email) throws UserNotFoundException, MessagingException;
+    //void generatePasswordResetToken(String email) throws UserNotFoundException, MessagingException;
 
-    void resetPassword(String token, String newPassword);
+    //void resetPassword(String token, String newPassword);
 
 
 }

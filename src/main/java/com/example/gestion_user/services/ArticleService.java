@@ -26,4 +26,6 @@ public interface ArticleService {
 
     public byte[] generateQRCodeForArticle(Integer id) throws Exception;
 
+
+
 }

@@ -20,7 +20,7 @@ public class EmailUtil {
         MimeMessageHelper mimeMessageHelper = new MimeMessageHelper(mimeMessage);
         mimeMessageHelper.setTo(email);
         mimeMessageHelper.setSubject("Reset Your Password");
-        mimeMessageHelper.setText("<div><a href=\"http://localhost:8091/api/auth/reset-password?token=" + token + "\" target=\"_blank\">Click here to reset your password</a></div>", true);
+        mimeMessageHelper.setText("<div><a href=\"http://localhost:8091/user/reset-password?token=" + token + "\" target=\"_blank\">Click here to reset your password</a></div>", true);
 
         javaMailSender.send(mimeMessage);
         LOGGER.info("Password reset email sent to {}");

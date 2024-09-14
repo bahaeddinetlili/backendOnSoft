@@ -1,10 +1,14 @@
 package com.example.gestion_user.controllers;
 
+import com.example.gestion_user.Util.EmailUtil;
+import com.example.gestion_user.entities.Token;
 import com.example.gestion_user.entities.User;
 import com.example.gestion_user.entities.UserPrincipal;
 import com.example.gestion_user.exceptions.*;
+import com.example.gestion_user.repositories.TokenRepository;
 import com.example.gestion_user.repositories.UserRepository;
 import com.example.gestion_user.security.JWTTokenProvider;
+import com.example.gestion_user.services.EmailService;
 import com.example.gestion_user.services.UserService;
 //import com.sun.xml.internal.messaging.saaj.packaging.mime.MessagingException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,18 +18,23 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.mail.MessagingException;
+import javax.transaction.Transactional;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import static com.example.gestion_user.constants.FileConstant.*;
 import static com.example.gestion_user.security.SecurityConstants.JWT_TOKEN_HEADER;
@@ -51,6 +60,16 @@ public class UserController extends ExceptionHandling {
     private UserRepository userRepository;
 
 
+    @Autowired
+    private TokenRepository tokenRepository;
+
+
+    @Autowired
+    private EmailService emailService;
+
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
 
 
@@ -174,19 +193,55 @@ public class UserController extends ExceptionHandling {
     }*/
 
 
-
+/*
     @PostMapping("/forgot-password")
     public ResponseEntity<String> forgotPassword(@RequestParam("email") String email) throws UserNotFoundException, MessagingException {
         userService.generatePasswordResetToken(email);
         return ResponseEntity.ok("Password reset email sent.");
     }
 
+
     @PostMapping("/reset-password")
     public ResponseEntity<String> resetPassword(@RequestParam("token") String token, @RequestParam("password") String newPassword) {
         userService.resetPassword(token, newPassword);
         return ResponseEntity.ok("Password reset successfully.");
     }
+*/
 
+    @PostMapping("/send-password-reset-link")
+    public ResponseEntity<?> sendPasswordResetLink(@RequestBody Map<String, String> request) {
+        User user = userRepository.findUserByEmail(request.get("email"));
+
+        String token = UUID.randomUUID().toString();
+        Token resetToken = new Token();
+        resetToken.setUserId(user.getId());
+        resetToken.setToken(token);
+        resetToken.setExpiryDate(LocalDateTime.now().plusHours(24)); // 24-hour validity
+        tokenRepository.save(resetToken);
+
+        String resetLink = "http://localhost:8091/resetpassword/" + token;
+        emailService.sendEmail(user.getEmail(), "Reset Password", "Click here to reset your password: " + resetLink);
+
+        return ResponseEntity.ok("Password reset link sent");
+    }
+
+    @PostMapping("/reset-password")
+    @Transactional // This will ensure the entire method is executed within a transaction
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
+        Token token = tokenRepository.findByToken(request.get("token"))
+                .orElseThrow(() -> new RuntimeException("Invalid token"));
+
+        User user = userRepository.findById(token.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setPassword(passwordEncoder.encode(request.get("password")));
+        userRepository.save(user);
+
+        // This delete operation requires a transaction
+        tokenRepository.deleteByToken(token.getToken());
+
+        return ResponseEntity.ok("Password reset successful");
+    }
 
 
 }

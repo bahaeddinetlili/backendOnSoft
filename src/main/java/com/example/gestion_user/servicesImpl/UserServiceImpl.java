@@ -251,7 +251,7 @@ public class UserServiceImpl implements UserService, UserDetailsService {
             return null;
         }
     }
-
+/*
     @Override
     public void generatePasswordResetToken(String email) throws UserNotFoundException, MessagingException {
         User user = findUserByEmail(email);
@@ -300,5 +300,5 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     public void changeUserPassword(User user, String newPassword) {
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
-    }
+    }*/
 }
